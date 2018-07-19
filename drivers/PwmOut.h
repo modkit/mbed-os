@@ -59,6 +59,7 @@ public:
      */
     PwmOut(PinName pin) : _deep_sleep_locked(false)
     {
+        printf("PwmOut Constructor\n");
         core_util_critical_section_enter();
         pwmout_init(&_pwm, pin);
         core_util_critical_section_exit();

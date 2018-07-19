@@ -3758,7 +3758,6 @@
             "MBED_TICKLESS",
             "MBEDTLS_CONFIG_HW_SUPPORT"
         ],
-        "features": ["CRYPTOCELL310"],
         "device_has": [
             "ANALOGIN",
             "FLASH",

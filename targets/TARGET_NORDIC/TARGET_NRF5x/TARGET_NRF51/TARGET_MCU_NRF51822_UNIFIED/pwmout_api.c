@@ -1,28 +1,28 @@
-/* 
+/*
  * Copyright (c) 2013 Nordic Semiconductor ASA
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
- *   1. Redistributions of source code must retain the above copyright notice, this list 
+ *
+ *   1. Redistributions of source code must retain the above copyright notice, this list
  *      of conditions and the following disclaimer.
  *
- *   2. Redistributions in binary form, except as embedded into a Nordic Semiconductor ASA 
- *      integrated circuit in a product or a software update for such product, must reproduce 
- *      the above copyright notice, this list of conditions and the following disclaimer in 
+ *   2. Redistributions in binary form, except as embedded into a Nordic Semiconductor ASA
+ *      integrated circuit in a product or a software update for such product, must reproduce
+ *      the above copyright notice, this list of conditions and the following disclaimer in
  *      the documentation and/or other materials provided with the distribution.
  *
- *   3. Neither the name of Nordic Semiconductor ASA nor the names of its contributors may be 
- *      used to endorse or promote products derived from this software without specific prior 
+ *   3. Neither the name of Nordic Semiconductor ASA nor the names of its contributors may be
+ *      used to endorse or promote products derived from this software without specific prior
  *      written permission.
  *
- *   4. This software, with or without modification, must only be used with a 
+ *   4. This software, with or without modification, must only be used with a
  *      Nordic Semiconductor ASA integrated circuit.
  *
- *   5. Any software provided in binary or object form under this license must not be reverse 
- *      engineered, decompiled, modified and/or disassembled. 
- * 
+ *   5. Any software provided in binary or object form under this license must not be reverse
+ *      engineered, decompiled, modified and/or disassembled.
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -33,7 +33,7 @@
  * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 
 #include "mbed_assert.h"
@@ -87,7 +87,7 @@ static void pwm_reinit(pwm_t * pwm)
                                                           pwm->pins[1]);
     app_pwm_init(pwm->instance, &pwm_cfg, NULL);
     app_pwm_enable(pwm->instance);
-    
+
     for (uint8_t channel = 0; channel < PWM_CHANNELS_PER_INSTANCE; ++channel) {
         if ((pwm->channels_allocated & (1 << channel)) && (pwm->pins[channel] != APP_PWM_NOPIN)) {
             app_pwm_channel_duty_ticks_set(pwm->instance, channel, pwm->duty_ticks[channel]);
@@ -114,10 +114,11 @@ static const peripheral_handler_desc_t timer_handlers[] =
 
 void pwmout_init(pwmout_t *obj, PinName pin)
 {
+    printf("Inside pwmout_init\n");
     if (pin == NC) {
         error("PwmOut init failed. Invalid pin name.");
     }
-    
+
     // Check if pin is already initialized and find the next free channel.
     uint8_t free_instance = 0xFF;
     uint8_t free_channel  = 0xFF;
@@ -161,7 +162,7 @@ void pwmout_init(pwmout_t *obj, PinName pin)
         NVIC_SetVector(GPIOTE_IRQn, (uint32_t) GPIOTE_IRQHandler);
 
         NVIC_SetVector(timer_handlers[free_instance].IRQn, timer_handlers[free_instance].vector);
-        
+
         m_pwm[free_instance].period_us = PWM_DEFAULT_PERIOD_US;
         for (uint8_t channel = 1; channel < PWM_CHANNELS_PER_INSTANCE; ++channel) {
             m_pwm[free_instance].pins[channel] = APP_PWM_NOPIN;
@@ -183,6 +184,7 @@ void pwmout_init(pwmout_t *obj, PinName pin)
 
 void pwmout_free(pwmout_t *obj)
 {
+    printf("Inside pwmout_free\n");
     MBED_ASSERT(obj->pwm_name != (PWMName)NC);
     MBED_ASSERT(obj->pwm_channel < PWM_CHANNELS_PER_INSTANCE);
 
@@ -196,7 +198,7 @@ void pwmout_free(pwmout_t *obj)
         pwm_reinit(pwm);
     }
 
-    obj->pwm_struct = NULL;    
+    obj->pwm_struct = NULL;
 }
 
 void pwmout_write(pwmout_t *obj, float value)
@@ -251,7 +253,7 @@ void pwmout_pulsewidth_us(pwmout_t *obj, int us)
 {
     pwm_t * pwm = (pwm_t *) obj->pwm_struct;
     MBED_ASSERT(pwm);
-    
+
     uint16_t ticks = nrf_timer_us_to_ticks((uint32_t)us, nrf_timer_frequency_get(pwm->timer_reg));
     pwm_ticks_set(pwm, obj->pwm_channel, ticks);
 }

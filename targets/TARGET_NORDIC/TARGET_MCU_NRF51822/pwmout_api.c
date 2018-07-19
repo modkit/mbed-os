@@ -230,6 +230,7 @@ void setModulation(pwmout_t *obj, uint8_t toggle, uint8_t high)
 
 void pwmout_init(pwmout_t *obj, PinName pin)
 {
+    printf("Inside pwmout_init\n");
     // determine the channel
     uint8_t pwmOutSuccess = 0;
     PWMName pwm           = (PWMName)pinmap_peripheral(pin, PinMap_PWM);
@@ -271,6 +272,7 @@ void pwmout_init(pwmout_t *obj, PinName pin)
 }
 
 void pwmout_free(pwmout_t* obj) {
+    printf("Inside pwmout_free\n");
     MBED_ASSERT(obj->pwm != (PWMName)NC);
     pwmout_write(obj, 0);
     PWM_taken[obj->pwm] = 0;
