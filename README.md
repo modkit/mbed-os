@@ -1,35 +1,70 @@
-[![Mbed OS][mbed-os-logo]][mbed-os-link]
+# mbed-os
 
-[![Build status release][mbed-travis-release-svg]][mbed-travis-release] 
-[![Build status master][mbed-travis-master-svg]][mbed-travis-master] 
-[![Tools coverage status][mbed-coveralls-tools-svg]][mbed-coveralls-tools] 
-[![PR progress][mbed-waffle-svg]][mbed-waffle] 
 
-[mbed-os-logo]: logo.png
-[mbed-os-link]: https://www.mbed.com/en/platform/mbed-os/
-[mbed-travis-master]: https://travis-ci.org/ARMmbed/mbed-os
-[mbed-travis-master-svg]: https://travis-ci.org/ARMmbed/mbed-os.svg?branch=master
-[mbed-travis-release]: https://travis-ci.org/ARMmbed/mbed-os/branches
-[mbed-travis-release-svg]: https://travis-ci.org/ARMmbed/mbed-os.svg?branch=latest
-[mbed-coveralls-tools]: https://coveralls.io/github/ARMmbed/mbed-os?branch=master
-[mbed-coveralls-tools-svg]: https://coveralls.io/repos/github/ARMmbed/mbed-os/badge.svg?branch=master
-[mbed-waffle]: https://waffle.io/ARMmbed/mbed-os
-[mbed-waffle-svg]: https://badge.waffle.io/ARMmbed/mbed-os.svg?columns=all
+## How to use mbed-os
 
-Arm Mbed OS is an open source embedded operating system designed specifically for the "things" in the Internet of Things. It includes all the features you need to develop a connected product based on an Arm Cortex-M microcontroller, including security, connectivity, an RTOS and drivers for sensors and I/O devices.
+### Requirements
+- [GCC ARM compiler](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads)
+- [srecord](http://srecord.sourceforge.net/download.html)
 
-Mbed OS provides a platform that includes:
-* Security foundations.
-* Cloud management services.
-* Drivers for sensors, I/O devices and connectivity. 
+### File Tree
+- `mbed-os` must be one directory above your program files
+- `mbed_config.h` must be in the **same** directory as `mbed-os` repo
+- `Makefile` must be in the inside your project folder directory
+- `Project` folder must be in the same directory as `mbed-os`
 
-## Release notes
-The [release notes](https://os.mbed.com/releases) detail the current release. You can also find information about previous versions.
+#### Example Tree
+- Modkit
+  - mbed-os
+  - project-one
+    - main.cpp
+    - Makefile
+  - project-two
+      - main.cpp
+      - Makefile
+  - mbed_config.h
 
-## Getting started for developers
- 
-We have a [developer website](https://os.mbed.com) for asking questions, engaging with others, finding information on boards and components, using an online IDE and compiler, reading the documentation and learning about what's new and what's coming next in Mbed OS.
+### Building and Compiling
 
-## Getting started for contributors
- 
-We also have a [contributing and publishing guide](https://os.mbed.com/contributing/) that covers licensing, contributor agreements and style guidelines.
+To build and compile your program, `cd` into your working directory where your program files and `Makefile` should be.
+
+Calling `make` from this directory will build and compile your program. It will create another `mbed-os` directory with all the mbed object files. It will also create a `BUILD` directory to store your hex and bin files.
+
+The hex file that is generated to flash to your board is called `nrf5...-flash.hex`.
+
+An example for a successful nrf51 build should look like this:
+```
+$ make
+.
+.
+.
+Compile: main.cpp
+link: nrf51.elf
+'arm-none-eabi-objcopy' -O binary nrf51.elf nrf51.bin
+'arm-none-eabi-objcopy' -O ihex nrf51.elf nrf51.hex
+NOTE: the srec_cat binary is required to be present in your PATH. Please see http://srecord.sourceforge.net/ for more information.
+srec_cat ../.././mbed-os/targets/TARGET_NORDIC/TARGET_MCU_NRF51822/Lib/s110_nrf51822_8_0_0/s110_nrf51822_8.0.0_softdevice.hex  -intel nrf51.hex -intel -o nrf51-flash.hex -intel --line-length=44
+===== hex file ready to flash: BUILD/nrf51-flash.hex =====
+```
+
+
+### EXTRAS
+Refer back to [How to use mbed-os](#how-to-use-mbed-os) to figure out where these files are placed.
+
+`mbed_config_nrf51.h` contains configuration data for the NRF51 board
+
+`mbed_config_nrf52.h` contains configuration data for the NRF52 board with OS 5 features included
+
+`mbed_config.h` contains configuration data for both the NRF51 and NRF52 boards
+
+`Makefile_nrf52` contains the rules to build the mbed-os library and your program files with the NRF52 board
+
+`Makefile_nrf51` contains the rules to build the mbed-os library and your program files with the NRF51 board
+
+`nrf52` contains a blinky sketch for the `nrf52840_dk` board with its corresponding `Makefile`
+
+`nrf51` contains a blinky sketch for the `nrf51822` board with its corresponding `Makefile`
+
+**NOTE:**
+- If you want to use the either the `mbed_config_nrf51.h` or `mbed_config_nrf52.h`, you must change the file name to be `mbed_config.h`.
+- The `Makefile` for NRF51 and NRF52 are different, so make sure you use the right one. Check inside the `Makefile`for `PROJECT := ...` to see which `Makefile` you are using. Make sure you also change the `Makefile_...` you are using to `Makefile`.
