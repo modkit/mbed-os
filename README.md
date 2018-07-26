@@ -1,12 +1,13 @@
 # mbed-os
 
 ## Table of Contents
-1. [How to Build and Compile Mbed 2 from Mbed-OS](#how-to-build-and-compile-Mbed-2-from-Mbed-os)   
-    1. [Requirements](#requirements)
+1. [Requirements](#requirements)
+2. [How to Build and Compile for Mbed-OS](#how-to-build-and-compile-for-mbed-os)
+3. [How to Build and Compile Mbed 2 from Mbed-OS](#how-to-build-and-compile-Mbed-2-from-Mbed-os)   
     2. [File Tree](#file-tree)
     3. [Building and Compiling](#building-and-compiling)
     4. [Extras](#extras)
-1. [How to Reproduce](#how-to-reproduce)
+4. [How to Reproduce for Mbed 2](#how-to-reproduce)
     1. [Getting mbed-os Repo](#getting-mbed-os-repo)
     2. [Getting Makefile for NRF52840_DK](#getting-makefile-for-nrf52840_dk)
     3. [Getting Makefile for NRF51_MICROBIT](#getting-makefile-for-nrf51_microbit)
@@ -14,11 +15,12 @@
     5. [Merging Makfiles](#merging-makefiles)
     6. [Changing Makefile](#changing-makfile)
 
-# How to Build and Compile Mbed 2 from Mbed-OS
 
-### Requirements
+# Requirements
 - [GCC ARM compiler](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads)
 - [srecord](http://srecord.sourceforge.net/download.html)
+
+# How to Build and Compile Mbed 2 from Mbed-OS
 
 ### File Tree
 - `mbed-os` must be one directory above your program files
