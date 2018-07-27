@@ -6,7 +6,6 @@
 
 # cross-platform directory manipulation
 
-$(shell cp ../mbed-os/mbed_config_nrf51.h ../mbed_config.h)
 ifeq ($(shell echo $$OS),$$OS)
     MAKEDIR = if not exist "$(1)" mkdir "$(1)"
     RM = rmdir /S /Q "$(1)"
@@ -29,6 +28,13 @@ all:
 $(OBJDIR): all
 Makefile : ;
 % :: $(OBJDIR) ; :
+
+mac :
+	$(shell cp ../mbed-os/mbed_config_nrf51.h ../mbed_config.h)
+
+windows :
+	copy ..\mbed-os\mbed_config_nrf51.h ..\mbed_config.h /y
+
 clean :
 	$(call RM,$(OBJDIR))
 

@@ -28,6 +28,13 @@ all:
 $(OBJDIR): all
 Makefile : ;
 % :: $(OBJDIR) ; :
+
+mac :
+	$(shell cp ../mbed-os/mbed_config_nrf52.h ../mbed_config.h)
+
+windows :
+	copy ..\mbed-os\mbed_config_nrf52.h ..\mbed_config.h /y
+	
 clean :
 	$(call RM,$(OBJDIR))
 
