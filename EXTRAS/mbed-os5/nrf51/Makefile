@@ -33,7 +33,7 @@ mac :
 	$(shell cp ../mbed-os/mbed_config_nrf51.h ../mbed_config.h)
 
 windows :
-	copy ..\mbed-os\mbed_config_nrf51.h ..\mbed_config.h /y
+	copy ..\mbed-os\mbed_config_nrf51.h ..\mbed_config.h
 
 clean :
 	$(call RM,$(OBJDIR))

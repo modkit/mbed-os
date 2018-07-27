@@ -5,7 +5,6 @@
 # Boiler-plate
 
 # cross-platform directory manipulation
-$(shell cp ../mbed-os/mbed_config_nrf52.h ../mbed_config.h)
 ifeq ($(shell echo $$OS),$$OS)
     MAKEDIR = if not exist "$(1)" mkdir "$(1)"
     RM = rmdir /S /Q "$(1)"
@@ -33,8 +32,8 @@ mac :
 	$(shell cp ../mbed-os/mbed_config_nrf52.h ../mbed_config.h)
 
 windows :
-	copy ..\mbed-os\mbed_config_nrf52.h ..\mbed_config.h /y
-	
+	copy ..\mbed-os\mbed_config_nrf52.h ..\mbed_config.h
+
 clean :
 	$(call RM,$(OBJDIR))
 
