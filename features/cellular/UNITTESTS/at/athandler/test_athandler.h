@@ -17,8 +17,7 @@
 #ifndef TEST_ATHANDLER_H
 #define TEST_ATHANDLER_H
 
-class Test_ATHandler
-{
+class Test_ATHandler {
 public:
     Test_ATHandler();
 
@@ -79,6 +78,8 @@ public:
     void test_ATHandler_read_bytes();
 
     void test_ATHandler_read_string();
+
+    void test_ATHandler_read_hex_string();
 
     void test_ATHandler_read_int();
 

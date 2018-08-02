@@ -42,7 +42,6 @@
 
 #include "events/EventQueue.h"
 
-#include "lorastack/phy/loraphy_target.h"
 #include "lorastack/phy/LoRaPHY.h"
 
 #include "system/LoRaWANTimer.h"
@@ -79,11 +78,15 @@ public:
      *
      * @param   queue [in]        A pointer to the application provided EventQueue.
      *
+     * @param   scheduling_failure_handler    A callback to inform upper layer if a deferred
+     *                                        transmission (after backoff or retry) fails to schedule.
+     *
      * @return  `lorawan_status_t` The status of the operation. The possible values are:
      *          \ref LORAWAN_STATUS_OK
      *          \ref LORAWAN_STATUS_PARAMETER_INVALID
      */
-    lorawan_status_t initialize(events::EventQueue *queue);
+    lorawan_status_t initialize(events::EventQueue *queue,
+                                mbed::Callback<void(void)>scheduling_failure_handler);
 
     /**
      * @brief   Disconnect LoRaMac layer
@@ -94,18 +97,18 @@ public:
     void disconnect(void);
 
     /**
-     * @brief   Queries the LoRaMAC whether it is possible to send the next frame with
-     *          a given payload size. The LoRaMAC takes the scheduled MAC commands into
-     *          account and returns corresponding value.
+     * @brief   Queries the LoRaMAC the maximum possible FRMPayload size to send.
+     *          The LoRaMAC takes the scheduled MAC commands into account and returns
+     *          corresponding value.
      *
-     * @param   size     [in]    The size of the applicable payload to be sent next.
+     * @param   fopts_len     [in]    Number of mac commands in the queue pending.
      *
      * @return  Size of the biggest packet that can be sent.
      *          Please note that if the size of the MAC commands in the queue do
      *          not fit into the payload size on the related datarate, the LoRaMAC will
      *          omit the MAC commands.
      */
-    uint8_t get_max_possible_tx_size(uint8_t size);
+    uint8_t get_max_possible_tx_size(uint8_t fopts_len);
 
     /**
      * @brief nwk_joined Checks if device has joined to network
@@ -210,18 +213,11 @@ public:
      */
     lorawan_status_t multicast_channel_unlink(multicast_params_t *channel_param);
 
-    /** Binds radio driver to PHY layer.
+    /** Binds phy layer to MAC.
      *
-     * MAC layer is totally detached from the PHY layer so the stack layer
-     * needs to play the role of an arbitrator. This API gets a radio driver
-     * object from the application (via LoRaWANInterface), binds it to the PHY
-     * layer and initialises radio callback handles which the radio driver will
-     * use in order to report events.
-     *
-     * @param radio            LoRaRadio object, i.e., the radio driver
-     *
+     * @param phy   LoRaPHY object
      */
-    void bind_radio_driver(LoRaRadio &radio);
+    void bind_phy(LoRaPHY &phy);
 
     /**
      * @brief Configures the events to trigger an MLME-Indication with
@@ -324,13 +320,18 @@ public:
 
     /**
      * @brief prepare_ongoing_tx This will prepare (and override) ongoing_tx_msg.
-     * @param port The application port number.
-     * @param data A pointer to the data being sent. The ownership of the
-     *             buffer is not transferred.
-     * @param length The size of data in bytes.
-     * @param flags A flag used to determine what type of
-     *              message is being sent.
-     * @param num_retries Number of retries for a confirmed type message
+     * @param port                          The application port number.
+     *
+     * @param data                          A pointer to the data being sent. The ownership of the
+     *                                      buffer is not transferred.
+     *
+     * @param length                        The size of data in bytes.
+     *
+     * @param flags                         A flag used to determine what type of
+     *                                      message is being sent.
+     *
+     * @param num_retries                   Number of retries for a confirmed type message
+     *
      * @return The number of bytes prepared for sending.
      */
     int16_t prepare_ongoing_tx(const uint8_t port, const uint8_t *data,
@@ -635,7 +636,7 @@ private:
     /**
      * LoRa PHY layer object storage
      */
-    LoRaPHY_region _lora_phy;
+    LoRaPHY *_lora_phy;
 
     /**
      * MAC command handle
@@ -668,6 +669,14 @@ private:
      * system cannot do more retries.
      */
     mbed::Callback<void(void)> _ack_expiry_handler_for_class_c;
+
+    /**
+     * Transmission is async, i.e., a call to schedule_tx() may be deferred to
+     * a time after a certain back off. We use this callback to inform the
+     * controller layer that a specific TX transaction failed to schedule after
+     * backoff or retry.
+     */
+    mbed::Callback<void(void)> _scheduling_failure_handler;
 
     /**
      * Structure to hold MCPS indication data.

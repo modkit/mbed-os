@@ -34,7 +34,6 @@ public:
     bool bool_value;
     bool max_sock_value;
     nsapi_error_t create_error;
-    int max_packet_size;
     CellularSocket socket;
 
     MyStack(ATHandler &atr, int cid, nsapi_ip_stack_t typ) : AT_CellularStack(atr, cid, typ)
@@ -42,51 +41,99 @@ public:
         bool_value = false;
         max_sock_value = 0;
         create_error = NSAPI_ERROR_OK;
-        max_packet_size = 0;
     }
 
-    virtual int get_max_socket_count(){return max_sock_value;}
+    virtual int get_max_socket_count()
+    {
+        return max_sock_value;
+    }
 
-    virtual int get_max_packet_size(){return max_packet_size;}
+    virtual bool is_protocol_supported(nsapi_protocol_t protocol)
+    {
+        return bool_value;
+    }
 
-    virtual bool is_protocol_supported(nsapi_protocol_t protocol){return bool_value;}
+    virtual nsapi_error_t socket_close_impl(int sock_id)
+    {
+        return NSAPI_ERROR_OK;
+    }
 
-    virtual nsapi_error_t socket_close_impl(int sock_id){return NSAPI_ERROR_OK;}
-
-    virtual nsapi_error_t create_socket_impl(CellularSocket *socket){return create_error;}
+    virtual nsapi_error_t create_socket_impl(CellularSocket *socket)
+    {
+        return create_error;
+    }
 
     virtual nsapi_size_or_error_t socket_sendto_impl(CellularSocket *socket, const SocketAddress &address,
-            const void *data, nsapi_size_t size){return NSAPI_ERROR_OK;}
+                                                     const void *data, nsapi_size_t size)
+    {
+        return NSAPI_ERROR_OK;
+    }
 
     virtual nsapi_size_or_error_t socket_recvfrom_impl(CellularSocket *socket, SocketAddress *address,
-            void *buffer, nsapi_size_t size) {return NSAPI_ERROR_OK;}
+                                                       void *buffer, nsapi_size_t size)
+    {
+        return NSAPI_ERROR_OK;
+    }
 
-    virtual nsapi_error_t socket_open(nsapi_socket_t *handle, nsapi_protocol_t proto) {return AT_CellularStack::socket_open(handle, proto);}
+    virtual nsapi_error_t socket_open(nsapi_socket_t *handle, nsapi_protocol_t proto)
+    {
+        return AT_CellularStack::socket_open(handle, proto);
+    }
 
-    virtual nsapi_error_t socket_close(nsapi_socket_t handle) {return AT_CellularStack::socket_close(handle);}
+    virtual nsapi_error_t socket_close(nsapi_socket_t handle)
+    {
+        return AT_CellularStack::socket_close(handle);
+    }
 
-    virtual nsapi_error_t socket_bind(nsapi_socket_t handle, const SocketAddress &address) {return AT_CellularStack::socket_bind(handle, address);}
+    virtual nsapi_error_t socket_bind(nsapi_socket_t handle, const SocketAddress &address)
+    {
+        return AT_CellularStack::socket_bind(handle, address);
+    }
 
-    virtual nsapi_error_t socket_listen(nsapi_socket_t handle, int backlog) {return AT_CellularStack::socket_listen(handle, backlog);}
+    virtual nsapi_error_t socket_listen(nsapi_socket_t handle, int backlog)
+    {
+        return AT_CellularStack::socket_listen(handle, backlog);
+    }
 
-    virtual nsapi_error_t socket_connect(nsapi_socket_t handle, const SocketAddress &address) {return AT_CellularStack::socket_connect(handle, address);}
+    virtual nsapi_error_t socket_connect(nsapi_socket_t handle, const SocketAddress &address)
+    {
+        return AT_CellularStack::socket_connect(handle, address);
+    }
 
     virtual nsapi_error_t socket_accept(nsapi_socket_t server,
-                                        nsapi_socket_t *handle, SocketAddress *address=0) {return AT_CellularStack::socket_accept(server, handle, address);}
+                                        nsapi_socket_t *handle, SocketAddress *address = 0)
+    {
+        return AT_CellularStack::socket_accept(server, handle, address);
+    }
 
     virtual nsapi_size_or_error_t socket_send(nsapi_socket_t handle,
-            const void *data, nsapi_size_t size) {return AT_CellularStack::socket_send(handle, data, size);}
+                                              const void *data, nsapi_size_t size)
+    {
+        return AT_CellularStack::socket_send(handle, data, size);
+    }
 
     virtual nsapi_size_or_error_t socket_recv(nsapi_socket_t handle,
-            void *data, nsapi_size_t size) {return AT_CellularStack::socket_recv(handle, data, size);}
+                                              void *data, nsapi_size_t size)
+    {
+        return AT_CellularStack::socket_recv(handle, data, size);
+    }
 
     virtual nsapi_size_or_error_t socket_sendto(nsapi_socket_t handle, const SocketAddress &address,
-            const void *data, nsapi_size_t size) {return AT_CellularStack::socket_sendto(handle, address, data, size);}
+                                                const void *data, nsapi_size_t size)
+    {
+        return AT_CellularStack::socket_sendto(handle, address, data, size);
+    }
 
     virtual nsapi_size_or_error_t socket_recvfrom(nsapi_socket_t handle, SocketAddress *address,
-            void *buffer, nsapi_size_t size) {return AT_CellularStack::socket_recvfrom(handle, address, buffer, size);}
+                                                  void *buffer, nsapi_size_t size)
+    {
+        return AT_CellularStack::socket_recvfrom(handle, address, buffer, size);
+    }
 
-    virtual void socket_attach(nsapi_socket_t handle, void (*callback)(void *), void *data) {return AT_CellularStack::socket_attach(handle, callback, data);}
+    virtual void socket_attach(nsapi_socket_t handle, void (*callback)(void *), void *data)
+    {
+        return AT_CellularStack::socket_attach(handle, callback, data);
+    }
 };
 
 Test_AT_CellularStack::Test_AT_CellularStack()
@@ -243,7 +290,7 @@ void Test_AT_CellularStack::test_AT_CellularStack_socket_send()
     nsapi_socket_t sock = &st.socket;
     st.socket_open(&sock, NSAPI_TCP);
     st.socket_connect(sock, addr);
-    CHECK(NSAPI_ERROR_DEVICE_ERROR == st.socket_send(sock, "addr", 4));
+    CHECK(NSAPI_ERROR_OK == st.socket_send(sock, "addr", 4));
 }
 
 void Test_AT_CellularStack::test_AT_CellularStack_socket_sendto()
@@ -266,7 +313,6 @@ void Test_AT_CellularStack::test_AT_CellularStack_socket_sendto()
     CHECK(NSAPI_ERROR_CONNECTION_LOST == st.socket_sendto(sock, addr, "addr", 4));
 
     st.create_error = NSAPI_ERROR_OK;
-    st.max_packet_size = 6;
     CHECK(NSAPI_ERROR_OK == st.socket_sendto(sock, addr, "addr", 4));
 }
 
@@ -301,7 +347,6 @@ void Test_AT_CellularStack::test_AT_CellularStack_socket_recvfrom()
     CHECK(NSAPI_ERROR_CONNECTION_LOST == st.socket_recvfrom(sock, &addr, table, 4));
 
     st.create_error = NSAPI_ERROR_OK;
-    st.max_packet_size = 6;
     CHECK(NSAPI_ERROR_OK == st.socket_recvfrom(sock, &addr, table, 4));
 }
 

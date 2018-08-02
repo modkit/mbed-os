@@ -21,12 +21,10 @@
 #include "AT_CellularStack.h"
 
 #define BC95_SOCKET_MAX 7
-#define BC95_MAX_PACKET_SIZE 1358
 
 namespace mbed {
 
-class QUECTEL_BC95_CellularStack : public AT_CellularStack
-{
+class QUECTEL_BC95_CellularStack : public AT_CellularStack {
 public:
     QUECTEL_BC95_CellularStack(ATHandler &atHandler, int cid, nsapi_ip_stack_t stack_type);
     virtual ~QUECTEL_BC95_CellularStack();
@@ -36,13 +34,11 @@ protected: // NetworkStack
     virtual nsapi_error_t socket_listen(nsapi_socket_t handle, int backlog);
 
     virtual nsapi_error_t socket_accept(nsapi_socket_t server,
-                                        nsapi_socket_t *handle, SocketAddress *address=0);
+                                        nsapi_socket_t *handle, SocketAddress *address = 0);
 
 protected: // AT_CellularStack
 
     virtual int get_max_socket_count();
-
-    virtual int get_max_packet_size();
 
     virtual bool is_protocol_supported(nsapi_protocol_t protocol);
 
@@ -51,10 +47,10 @@ protected: // AT_CellularStack
     virtual nsapi_error_t create_socket_impl(CellularSocket *socket);
 
     virtual nsapi_size_or_error_t socket_sendto_impl(CellularSocket *socket, const SocketAddress &address,
-            const void *data, nsapi_size_t size);
+                                                     const void *data, nsapi_size_t size);
 
     virtual nsapi_size_or_error_t socket_recvfrom_impl(CellularSocket *socket, SocketAddress *address,
-            void *buffer, nsapi_size_t size);
+                                                       void *buffer, nsapi_size_t size);
 
 private:
     // URC handlers

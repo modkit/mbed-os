@@ -30,7 +30,7 @@ class IAR(mbedToolchain):
 
     DIAGNOSTIC_PATTERN = re.compile('"(?P<file>[^"]+)",(?P<line>[\d]+)\s+(?P<severity>Warning|Error|Fatal error)(?P<message>.+)')
     INDEX_PATTERN  = re.compile('(?P<col>\s*)\^')
-    IAR_VERSION_RE = re.compile("IAR ANSI C/C\+\+ Compiler V(\d+\.\d+)")
+    IAR_VERSION_RE = re.compile(b"IAR ANSI C/C\+\+ Compiler V(\d+\.\d+)")
     IAR_VERSION = LooseVersion("7.80")
 
     @staticmethod
@@ -99,7 +99,7 @@ class IAR(mbedToolchain):
         stdout, _, retcode = run_cmd([self.cc[0], "--version"], redirect=True)
         msg = None
         match = self.IAR_VERSION_RE.search(stdout)
-        found_version = match.group(1) if match else None
+        found_version = match.group(1).decode("utf-8") if match else None
         if found_version and LooseVersion(found_version) != self.IAR_VERSION:
             msg = "Compiler version mismatch: Have {}; expected {}".format(
                 found_version, self.IAR_VERSION)
@@ -165,17 +165,26 @@ class IAR(mbedToolchain):
 
     def get_compile_options(self, defines, includes, for_asm=False):
         opts = ['-D%s' % d for d in defines]
-        if for_asm :
+        if for_asm:
+            config_macros = self.config.get_config_data_macros()
+            macros_cmd = ['"-D%s"' % d.replace('"', '') for d in config_macros]
+            if self.RESPONSE_FILES:
+                via_file = self.make_option_file(
+                    macros_cmd, "asm_macros_{}.xcl")
+                opts += ['-f', via_file]
+            else:
+                opts += macros_cmd
             return opts
-        if self.RESPONSE_FILES:
-            opts += ['-f', self.get_inc_file(includes)]
         else:
-            opts += ["-I%s" % i for i in includes]
+            if self.RESPONSE_FILES:
+                opts += ['-f', self.get_inc_file(includes)]
+            else:
+                opts += ["-I%s" % i for i in includes]
+            config_header = self.get_config_header()
+            if config_header is not None:
+                opts = opts + self.get_config_option(config_header)
 
-        config_header = self.get_config_header()
-        if config_header is not None:
-            opts = opts + self.get_config_option(config_header)
-        return opts
+            return opts
 
     @hook_tool
     def assemble(self, source, object, includes):

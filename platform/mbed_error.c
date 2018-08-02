@@ -45,6 +45,11 @@
                             }                                                       \
                         }
 
+#ifndef NDEBUG
+#define ERROR_REPORT(ctx, error_msg) print_error_report(ctx, error_msg)
+#else
+#define ERROR_REPORT(ctx, error_msg) ((void) 0)
+#endif
 
 static uint8_t error_in_progress = 0;
 static int error_count = 0;
@@ -52,7 +57,7 @@ static mbed_error_ctx first_error_ctx = {0};
 static mbed_error_ctx last_error_ctx = {0};
 static mbed_error_hook_t error_hook = NULL;
 static void print_error_report(mbed_error_ctx *ctx, const char *);
-static mbed_error_status_t handle_error(mbed_error_status_t error_status, unsigned int error_value, const char *filename, int line_number);
+static mbed_error_status_t handle_error(mbed_error_status_t error_status, unsigned int error_value, const char *filename, int line_number, void *caller);
 
 //Helper function to halt the system
 static void mbed_halt_system(void)
@@ -77,8 +82,8 @@ WEAK void error(const char *format, ...)
     }
 
     //Call handle_error/print_error_report permanently setting error_in_progress flag
-    handle_error(MBED_ERROR_UNKNOWN, 0, NULL, 0);
-    print_error_report(&last_error_ctx, "Fatal Run-time error");
+    handle_error(MBED_ERROR_UNKNOWN, 0, NULL, 0, MBED_CALLER_ADDR());
+    ERROR_REPORT(&last_error_ctx, "Fatal Run-time error");
     error_in_progress = 1;
 
 #ifndef NDEBUG
@@ -91,7 +96,7 @@ WEAK void error(const char *format, ...)
 }
 
 //Set an error status with the error handling system
-static mbed_error_status_t handle_error(mbed_error_status_t error_status, unsigned int error_value, const char *filename, int line_number)
+static mbed_error_status_t handle_error(mbed_error_status_t error_status, unsigned int error_value, const char *filename, int line_number, void *caller)
 {
     mbed_error_ctx current_error_ctx;
 
@@ -118,7 +123,7 @@ static mbed_error_status_t handle_error(mbed_error_status_t error_status, unsign
     memset(&current_error_ctx, sizeof(mbed_error_ctx), 0);
     //Capture error information
     current_error_ctx.error_status = error_status;
-    current_error_ctx.error_address = (uint32_t)MBED_CALLER_ADDR();
+    current_error_ctx.error_address = (uint32_t)caller;
     current_error_ctx.error_value = error_value;
 #ifdef MBED_CONF_RTOS_PRESENT
     //Capture thread info
@@ -188,19 +193,19 @@ int mbed_get_error_count(void)
 //Sets a fatal error
 mbed_error_status_t mbed_warning(mbed_error_status_t error_status, const char *error_msg, unsigned int error_value, const char *filename, int line_number)
 {
-    return handle_error(error_status, error_value, filename, line_number);
+    return handle_error(error_status, error_value, filename, line_number, MBED_CALLER_ADDR());
 }
 
 //Sets a fatal error, this function is marked WEAK to be able to override this for some tests
 WEAK mbed_error_status_t mbed_error(mbed_error_status_t error_status, const char *error_msg, unsigned int error_value, const char *filename, int line_number)
 {
     //set the error reported and then halt the system
-    if (MBED_SUCCESS != handle_error(error_status, error_value, filename, line_number)) {
+    if (MBED_SUCCESS != handle_error(error_status, error_value, filename, line_number, MBED_CALLER_ADDR())) {
         return MBED_ERROR_FAILED_OPERATION;
     }
 
     //On fatal errors print the error context/report
-    print_error_report(&last_error_ctx, error_msg);
+    ERROR_REPORT(&last_error_ctx, error_msg);
     mbed_halt_system();
 
     return MBED_ERROR_FAILED_OPERATION;
@@ -302,6 +307,7 @@ static void print_threads_info(osRtxThread_t *threads)
 }
 #endif
 
+#ifndef NDEBUG
 static void print_error_report(mbed_error_ctx *ctx, const char *error_msg)
 {
     uint32_t error_code = MBED_GET_ERROR_CODE(ctx->error_status);
@@ -386,6 +392,7 @@ static void print_error_report(mbed_error_ctx *ctx, const char *error_msg)
 
     mbed_error_printf("\n-- MbedOS Error Info --\n");
 }
+#endif //ifndef NDEBUG
 
 #if MBED_CONF_PLATFORM_ERROR_HIST_ENABLED
 //Retrieve the error context from error log at the specified index

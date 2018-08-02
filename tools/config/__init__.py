@@ -30,6 +30,7 @@ from jinja2 import FileSystemLoader, StrictUndefined
 from jinja2.environment import Environment
 from jsonschema import Draft4Validator, RefResolver
 
+from ..resources import FileType
 from ..utils import (json_file_to_dict, intelhex_offset, integer,
                      NotSupportedException)
 from ..arm_pack_manager import Cache
@@ -61,6 +62,14 @@ RAM_OVERRIDES = set([
 BOOTLOADER_OVERRIDES = ROM_OVERRIDES | RAM_OVERRIDES
 
 
+ALLOWED_FEATURES = [
+    "UVISOR", "BLE", "CLIENT", "IPV4", "LWIP", "COMMON_PAL", "STORAGE",
+    "NANOSTACK","CRYPTOCELL310",
+    # Nanostack configurations
+    "LOWPAN_BORDER_ROUTER", "LOWPAN_HOST", "LOWPAN_ROUTER", "NANOSTACK_FULL",
+    "THREAD_BORDER_ROUTER", "THREAD_END_DEVICE", "THREAD_ROUTER",
+    "ETHERNET_HOST",
+]
 
 # Base class for all configuration exceptions
 class ConfigException(Exception):
@@ -395,13 +404,6 @@ class Config(object):
 
     __unused_overrides = set(["target.bootloader_img", "target.restrict_size",
                               "target.mbed_app_start", "target.mbed_app_size"])
-
-    # Allowed features in configurations
-    __allowed_features = [
-        "UVISOR", "BLE", "CLIENT", "IPV4", "LWIP", "COMMON_PAL", "STORAGE", "NANOSTACK","CRYPTOCELL310",
-        # Nanostack configurations
-        "LOWPAN_BORDER_ROUTER", "LOWPAN_HOST", "LOWPAN_ROUTER", "NANOSTACK_FULL", "THREAD_BORDER_ROUTER", "THREAD_END_DEVICE", "THREAD_ROUTER", "ETHERNET_HOST"
-        ]
 
     @classmethod
     def find_app_config(cls, top_level_dirs):
@@ -1043,7 +1045,7 @@ class Config(object):
             .update_target(self.target)
 
         for feature in self.target.features:
-            if feature not in self.__allowed_features:
+            if feature not in ALLOWED_FEATURES:
                 raise ConfigException(
                     "Feature '%s' is not a supported features" % feature)
 
@@ -1084,16 +1086,16 @@ class Config(object):
         while True:
             # Add/update the configuration with any .json files found while
             # scanning
-            self.add_config_files(resources.json_files)
+            self.add_config_files(
+                f.path for f in resources.get_file_refs(FileType.JSON)
+            )
 
             # Add features while we find new ones
             features = set(self.get_features())
             if features == prev_features:
                 break
 
-            for feature in features:
-                if feature in resources.features:
-                    resources.add(resources.features[feature])
+            resources.add_features(features)
 
             prev_features = features
         self.validate_config()
@@ -1102,8 +1104,6 @@ class Config(object):
              "5" not in self.target.release_versions and
              "rtos" in self.lib_config_data):
             raise NotSupportedException("Target does not support mbed OS 5")
-
-        return resources
 
     @staticmethod
     def config_to_header(config, fname=None):
@@ -1124,10 +1124,14 @@ class Config(object):
         Config._check_required_parameters(params)
         params_with_values = [p for p in params.values() if p.value is not None]
         ctx = {
-            "cfg_params" : [(p.macro_name, str(p.value), p.set_by)
-                            for p in params_with_values],
-            "macros": [(m.macro_name, str(m.macro_value or ""), m.defined_by)
-                       for m in macros.values()],
+            "cfg_params": sorted([
+                (p.macro_name, str(p.value), p.set_by)
+                for p in params_with_values
+            ]),
+            "macros": sorted([
+                (m.macro_name, str(m.macro_value or ""), m.defined_by)
+                for m in macros.values()
+            ]),
             "name_len":  max([len(m.macro_name) for m in macros.values()] +
                              [len(m.macro_name) for m in params_with_values]
                              + [0]),

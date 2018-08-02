@@ -44,6 +44,7 @@ SPDX-License-Identifier: BSD-3-Clause
 #define CONNECTED_FLAG              0x00000004
 #define USING_OTAA_FLAG             0x00000008
 #define TX_DONE_FLAG                0x00000010
+#define CONN_IN_PROGRESS_FLAG       0x00000020
 
 using namespace mbed;
 using namespace events;
@@ -98,7 +99,7 @@ LoRaWANStack::LoRaWANStack()
 /*****************************************************************************
  * Public Methods                                                            *
  ****************************************************************************/
-void LoRaWANStack::bind_radio_driver(LoRaRadio &radio)
+void LoRaWANStack::bind_phy_and_radio_driver(LoRaRadio &radio, LoRaPHY &phy)
 {
     radio_events.tx_done = mbed::callback(this, &LoRaWANStack::tx_interrupt_handler);
     radio_events.rx_done = mbed::callback(this, &LoRaWANStack::rx_interrupt_handler);
@@ -106,7 +107,8 @@ void LoRaWANStack::bind_radio_driver(LoRaRadio &radio)
     radio_events.tx_timeout = mbed::callback(this, &LoRaWANStack::tx_timeout_interrupt_handler);
     radio_events.rx_timeout = mbed::callback(this, &LoRaWANStack::rx_timeout_interrupt_handler);
 
-    _loramac.bind_radio_driver(radio);
+    phy.set_radio_instance(radio);
+    _loramac.bind_phy(phy);
 
     radio.lock();
     radio.init_radio(&radio_events);
@@ -155,6 +157,14 @@ lorawan_status_t LoRaWANStack::connect()
         return LORAWAN_STATUS_NOT_INITIALIZED;
     }
 
+    if (_ctrl_flags & CONN_IN_PROGRESS_FLAG) {
+        return LORAWAN_STATUS_BUSY;
+    }
+
+    if (_ctrl_flags & CONNECTED_FLAG) {
+        return LORAWAN_STATUS_ALREADY_CONNECTED;
+    }
+
     lorawan_status_t status = _loramac.prepare_join(NULL, MBED_CONF_LORA_OVER_THE_AIR_ACTIVATION);
 
     if (LORAWAN_STATUS_OK != status) {
@@ -168,6 +178,14 @@ lorawan_status_t LoRaWANStack::connect(const lorawan_connect_t &connect)
 {
     if (DEVICE_STATE_NOT_INITIALIZED == _device_current_state) {
         return LORAWAN_STATUS_NOT_INITIALIZED;
+    }
+
+    if (_ctrl_flags & CONN_IN_PROGRESS_FLAG) {
+        return LORAWAN_STATUS_BUSY;
+    }
+
+    if (_ctrl_flags & CONNECTED_FLAG) {
+        return LORAWAN_STATUS_ALREADY_CONNECTED;
     }
 
     if (!(connect.connect_type == LORAWAN_CONNECTION_OTAA)
@@ -259,14 +277,16 @@ lorawan_status_t LoRaWANStack::enable_adaptive_datarate(bool adr_enabled)
 
 lorawan_status_t LoRaWANStack::stop_sending(void)
 {
+    if (_device_current_state == DEVICE_STATE_NOT_INITIALIZED) {
+        return LORAWAN_STATUS_NOT_INITIALIZED;
+    }
+
     if (_loramac.clear_tx_pipe() == LORAWAN_STATUS_OK) {
-        if (_device_current_state == DEVICE_STATE_SENDING) {
-            _ctrl_flags &= ~TX_DONE_FLAG;
-            _ctrl_flags &= ~TX_ONGOING_FLAG;
-            _loramac.set_tx_ongoing(false);
-            _device_current_state = DEVICE_STATE_IDLE;
-            return LORAWAN_STATUS_OK;
-        }
+        _ctrl_flags &= ~TX_DONE_FLAG;
+        _ctrl_flags &= ~TX_ONGOING_FLAG;
+        _loramac.set_tx_ongoing(false);
+        _device_current_state = DEVICE_STATE_IDLE;
+        return LORAWAN_STATUS_OK;
     }
 
     return LORAWAN_STATUS_BUSY;
@@ -312,7 +332,7 @@ int16_t LoRaWANStack::handle_tx(const uint8_t port, const uint8_t *data,
         return status;
     }
 
-    // All the flags mutually exclusive. In addition to that MSG_MULTICAST_FLAG cannot be
+    // All the flags are mutually exclusive. In addition to that MSG_MULTICAST_FLAG cannot be
     // used for uplink.
     switch (flags & MSG_FLAG_MASK) {
         case MSG_UNCONFIRMED_FLAG:
@@ -611,6 +631,13 @@ void LoRaWANStack::handle_ack_expiry_for_class_c(void)
     state_controller(DEVICE_STATE_STATUS_CHECK);
 }
 
+void LoRaWANStack::handle_scheduling_failure(void)
+{
+    tr_error("Failed to schedule transmission");
+    state_controller(DEVICE_STATE_STATUS_CHECK);
+    state_machine_run_to_completion();
+}
+
 void LoRaWANStack::process_reception(const uint8_t *const payload, uint16_t size,
                                      int16_t rssi, int8_t snr)
 {
@@ -824,6 +851,8 @@ int LoRaWANStack::convert_to_msg_flag(const mcps_type_t type)
 
 lorawan_status_t LoRaWANStack::handle_connect(bool is_otaa)
 {
+    _ctrl_flags |= CONN_IN_PROGRESS_FLAG;
+
     if (is_otaa) {
         tr_debug("Initiating OTAA");
 
@@ -926,22 +955,26 @@ void LoRaWANStack::mlme_confirm_handler()
 
 void LoRaWANStack::mcps_confirm_handler()
 {
-    // success case
-    if (_loramac.get_mcps_confirmation()->status == LORAMAC_EVENT_INFO_STATUS_OK) {
-        _lw_session.uplink_counter = _loramac.get_mcps_confirmation()->ul_frame_counter;
-        send_event_to_application(TX_DONE);
-        return;
-    }
+    switch (_loramac.get_mcps_confirmation()->status) {
 
-    // failure case
-    if (_loramac.get_mcps_confirmation()->status == LORAMAC_EVENT_INFO_STATUS_TX_TIMEOUT) {
-        tr_error("Fatal Error, Radio failed to transmit");
-        send_event_to_application(TX_TIMEOUT);
-        return;
-    }
+        case LORAMAC_EVENT_INFO_STATUS_OK:
+            _lw_session.uplink_counter = _loramac.get_mcps_confirmation()->ul_frame_counter;
+            send_event_to_application(TX_DONE);
+            break;
 
-    // if no ack was received, send TX_ERROR
-    send_event_to_application(TX_ERROR);
+        case LORAMAC_EVENT_INFO_STATUS_TX_TIMEOUT:
+            tr_error("Fatal Error, Radio failed to transmit");
+            send_event_to_application(TX_TIMEOUT);
+            break;
+
+        case LORAMAC_EVENT_INFO_STATUS_TX_DR_PAYLOAD_SIZE_ERROR:
+            send_event_to_application(TX_SCHEDULING_ERROR);
+            break;
+
+        default:
+            // if no ack was received after enough retries, send TX_ERROR
+            send_event_to_application(TX_ERROR);
+    }
 }
 
 void LoRaWANStack::mcps_indication_handler()
@@ -1060,6 +1093,7 @@ void LoRaWANStack::process_shutdown_state(lorawan_status_t &op_status)
     _device_current_state = DEVICE_STATE_SHUTDOWN;
     op_status = LORAWAN_STATUS_DEVICE_OFF;
     _ctrl_flags &= ~CONNECTED_FLAG;
+    _ctrl_flags &= ~CONN_IN_PROGRESS_FLAG;
     send_event_to_application(DISCONNECTED);
 }
 
@@ -1067,11 +1101,13 @@ void LoRaWANStack::process_status_check_state()
 {
     if (_device_current_state == DEVICE_STATE_SENDING ||
             _device_current_state == DEVICE_STATE_AWAITING_ACK) {
-        // this happens after RX2 slot is exhausted
-        // we may or may not have a successful UNCONFIRMED transmission
+        // If there was a successful transmission, this block gets a kick after
+        // RX2 slot is exhausted. We may or may not have a successful UNCONFIRMED transmission
         // here. In CONFIRMED case this block is invoked only
         // when the MAX number of retries are exhausted, i.e., only error
         // case will fall here. Moreover, it will happen for Class A only.
+        // Another possibility is the case when the stack fails to schedule a
+        // deferred transmission and a scheduling failure handler is invoked.
         _ctrl_flags &= ~TX_DONE_FLAG;
         _ctrl_flags &= ~TX_ONGOING_FLAG;
         _loramac.set_tx_ongoing(false);
@@ -1140,6 +1176,7 @@ void LoRaWANStack::process_joining_state(lorawan_status_t &op_status)
         bool can_continue = _loramac.continue_joining_process();
 
         if (!can_continue) {
+            _ctrl_flags &= ~CONN_IN_PROGRESS_FLAG;
             send_event_to_application(JOIN_FAILURE);
             _device_current_state = DEVICE_STATE_IDLE;
             return;
@@ -1149,30 +1186,23 @@ void LoRaWANStack::process_joining_state(lorawan_status_t &op_status)
 
 void LoRaWANStack::process_connected_state()
 {
+    _ctrl_flags |= CONNECTED_FLAG;
+    _ctrl_flags &= ~CONN_IN_PROGRESS_FLAG;
+
     if (_ctrl_flags & USING_OTAA_FLAG) {
         tr_debug("OTAA Connection OK!");
     }
 
     _lw_session.active = true;
     send_event_to_application(CONNECTED);
-    _ctrl_flags |= CONNECTED_FLAG;
 
     _device_current_state = DEVICE_STATE_IDLE;
 }
 
 void LoRaWANStack::process_connecting_state(lorawan_status_t &op_status)
 {
-    if (_device_current_state != DEVICE_STATE_IDLE
-            && _device_current_state != DEVICE_STATE_SHUTDOWN) {
-        op_status = LORAWAN_STATUS_BUSY;
-        return;
-    }
-
-    if (_ctrl_flags & CONNECTED_FLAG) {
-        tr_debug("Already connected");
-        op_status = LORAWAN_STATUS_OK;
-        return;
-    }
+    MBED_ASSERT(_device_current_state == DEVICE_STATE_IDLE ||
+                _device_current_state == DEVICE_STATE_SHUTDOWN);
 
     _device_current_state = DEVICE_STATE_CONNECTING;
 
@@ -1200,7 +1230,8 @@ void LoRaWANStack::process_idle_state(lorawan_status_t &op_status)
 
 void LoRaWANStack::process_uninitialized_state(lorawan_status_t &op_status)
 {
-    op_status = _loramac.initialize(_queue);
+    op_status = _loramac.initialize(_queue, mbed::callback(this,
+                                                           &LoRaWANStack::handle_scheduling_failure));
 
     if (op_status == LORAWAN_STATUS_OK) {
         _device_current_state = DEVICE_STATE_IDLE;
