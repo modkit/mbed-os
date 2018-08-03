@@ -54,7 +54,6 @@ public:
     {
         // No lock needed in the constructor
         gpio_init_out(&gpio, pin);
-        printf("DigitalOut\n");
     }
 
     /** Create a DigitalOut connected to the specified pin
